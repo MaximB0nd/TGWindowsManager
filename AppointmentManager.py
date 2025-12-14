@@ -24,7 +24,6 @@ class AppointmentManager:
 
         # Создаем таблицы
         self._create_tables()
-        self._create_default_data()
 
     def _create_tables(self):
         """Создание всех необходимых таблиц"""
