@@ -62,6 +62,17 @@ class Database:
             )
         """)
         
+        # Таблица для отслеживания приветственных сообщений
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_welcome_log (
+                user_id INTEGER PRIMARY KEY,
+                welcome_sent_at TEXT,
+                last_activity_at TEXT,
+                is_new_user INTEGER DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES clients (user_id)
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
@@ -236,5 +247,98 @@ class Database:
             return False
         finally:
             conn.close()
+    
+    def is_new_user(self, user_id: int) -> bool:
+        """Проверить, является ли пользователь новым"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT is_new_user FROM user_welcome_log WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row is None:
+            return True
+        return bool(row['is_new_user'])
+    
+    def get_last_activity_time(self, user_id: int) -> Optional[str]:
+        """Получить время последней активности пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT last_activity_at FROM user_welcome_log WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return row['last_activity_at']
+        return None
+    
+    def mark_welcome_sent(self, user_id: int, is_new: bool = True):
+        """Отметить, что приветственное сообщение отправлено"""
+        from datetime import datetime
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        now = datetime.now().isoformat()
+        try:
+            cursor.execute("""
+                INSERT OR REPLACE INTO user_welcome_log 
+                (user_id, welcome_sent_at, last_activity_at, is_new_user)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, now, now, 1 if is_new else 0))
+            conn.commit()
+        except Exception as e:
+            print(f"Ошибка при сохранении лога приветствия: {e}")
+        finally:
+            conn.close()
+    
+    def update_user_activity(self, user_id: int):
+        """Обновить время последней активности пользователя"""
+        from datetime import datetime
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        now = datetime.now().isoformat()
+        try:
+            # Проверяем, существует ли запись
+            cursor.execute("SELECT user_id FROM user_welcome_log WHERE user_id = ?", (user_id,))
+            if cursor.fetchone():
+                cursor.execute("""
+                    UPDATE user_welcome_log 
+                    SET last_activity_at = ?, is_new_user = 0
+                    WHERE user_id = ?
+                """, (now, user_id))
+            else:
+                cursor.execute("""
+                    INSERT INTO user_welcome_log 
+                    (user_id, last_activity_at, is_new_user)
+                    VALUES (?, ?, 0)
+                """, (user_id, now))
+            conn.commit()
+        except Exception as e:
+            print(f"Ошибка при обновлении активности: {e}")
+        finally:
+            conn.close()
+    
+    def should_send_welcome_again(self, user_id: int) -> bool:
+        """Проверить, нужно ли отправить приветствие снова (прошло более 24 часов)"""
+        from datetime import datetime, timedelta
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT last_activity_at FROM user_welcome_log WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row is None or row['last_activity_at'] is None:
+            return True
+        
+        try:
+            last_activity = datetime.fromisoformat(row['last_activity_at'])
+            time_diff = datetime.now() - last_activity
+            return time_diff > timedelta(hours=24)
+        except (ValueError, TypeError):
+            return True
 
 
