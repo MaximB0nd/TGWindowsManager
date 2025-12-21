@@ -293,3 +293,4 @@ class WindowBot:
         """Остановка бота"""
         await self.bot.session.close()
 
+
