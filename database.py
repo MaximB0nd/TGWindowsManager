@@ -293,10 +293,26 @@ class Database:
             "разница между", "отличие между", "сравни между"
         ]
         
+        # Вопросы о цене/количестве тоже считаем сложными
+        price_quantity_keywords = [
+            "цена установки", "стоимость установки", "цена монтажа", "стоимость монтажа",
+            "сколько стоит установка", "сколько стоит монтаж", "цена за", "стоимость за",
+            "сколько окон", "сколько штук", "количество окон", "количество штук",
+            "цена окна", "стоимость окна", "цена одного окна", "стоимость одного окна"
+        ]
+        
         query_lower = query.lower()
+        
+        # Проверяем сложные вопросы
         for keyword in complex_keywords:
             if keyword in query_lower:
                 return True
+        
+        # Проверяем вопросы о цене/количестве
+        for keyword in price_quantity_keywords:
+            if keyword in query_lower:
+                return True
+        
         return False
     
     def add_to_knowledge_base(self, question: str, answer: str) -> bool:
