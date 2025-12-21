@@ -24,7 +24,6 @@ class AppointmentManager:
 
         # Создаем таблицы
         self._create_tables()
-        self._create_default_data()
 
     def _create_tables(self):
         """Создание всех необходимых таблиц"""
@@ -946,3 +945,40 @@ class AppointmentManager:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    # Добавьте этот метод в класс AppointmentManager в файле AppointmentManager.py
+
+    def get_client_by_tg_id(self, tg_id: int):
+        """
+        Получение клиента по ID Telegram
+
+        Args:
+            tg_id: ID пользователя Telegram
+
+        Returns:
+            Данные клиента или None
+        """
+        # Ищем клиента по телефону в формате tg_123456789
+        phone = f"tg_{tg_id}"
+        self.cursor.execute("SELECT * FROM clients WHERE phone = ?", (phone,))
+        row = self.cursor.fetchone()
+        return dict(row) if row else None
+
+    def add_client_with_tg_id(self, first_name: str, last_name: str, tg_id: int,
+                              email: str = None, birth_date: str = None, notes: str = None) -> int:
+        """
+        Добавление нового клиента с ID Telegram
+
+        Args:
+            first_name: Имя
+            last_name: Фамилия
+            tg_id: ID Telegram
+            email: Email
+            birth_date: Дата рождения (YYYY-MM-DD)
+            notes: Заметки
+
+        Returns:
+            ID созданного клиента
+        """
+        phone = f"tg_{tg_id}"
+        return self.add_client(first_name, last_name, phone, email, birth_date, notes)
